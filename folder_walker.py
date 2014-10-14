@@ -26,7 +26,7 @@ def get_filenames():
 		# if count == 500:
 		# 	break
 
-		count +=1	
+		count += 1	
 
 
 		for fname in fileList:
