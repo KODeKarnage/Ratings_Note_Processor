@@ -15,6 +15,7 @@ import sys
 import pickle
 import re
 import random
+import time
 
 # Custom modules
 import RN_toolbag as t
@@ -178,45 +179,94 @@ def get_scores(lines):
 
 	for score in scores:
 
+		found = False
+
 		for i, text in enumerate(lines):
+
+			if found:
+				break
 
 			text = text.strip().lstrip().lower()
 
+			# cycle through the lines to where the SCORE is found
+
 			if text == score.lower():
 
-				new_score_line = lines[i+1].strip().lstrip()
+				# create a new list of the 10 following lines
 
-				if '/' in new_score_line:
+				new_score_space = lines[i+1:i+11]
 
-					new_score_fraction = new_score_line.split('/')
+				# cycle through those 10 lines
 
-					if len(new_score_fraction) > 1:
+				for x, lyne in enumerate(new_score_space):
 
-						ns = new_score_fraction[0]
-						out_of = new_score_fraction[1]
+					# # escape the loop if x is the last line
+
+					# if x == len(new_score_space)-1:
+					# 	continue
+
+					# 
+
+					new_score_line = lyne.strip().lstrip()
+					# print new_score_line
+
+					# if the line has these items, then ignore them
+					escape_chars = list('><()') + ['ilver', 'old', 'ronze','eutral','egative']
+					req_chars = list('0123456789')
+
 					
+					if any(char in new_score_line for char in escape_chars):
+						continue
+
+					if not any(char in new_score_line for char in req_chars):
+						continue
+
 					else:
-						ns = new_score_fraction[0]
-						out_of = 0
 
-				else:
-					ns = new_score_line
-					out_of = 0
+						if '/' in new_score_line:
 
-				old_score_line = lines[i+2].strip().lstrip()
+							new_score_fraction = new_score_line.split('/')
 
-				if '/' in old_score_line:
-					old_score_fraction = old_score_line.split('/')
-					os = old_score_fraction[0]
+							if len(new_score_fraction) > 1:
 
-				else:
-					os = old_score_line
+								ns = new_score_fraction[0]
+								out_of = new_score_fraction[1]
+							
+							else:
+								ns = new_score_fraction[0]
+								out_of = 0
+
+						else:
+							ns = new_score_line
+							out_of = 0
+
+						try:
+							old_score_line = new_score_space[x+1].strip().lstrip()
+
+							if '/' in old_score_line:
+								old_score_fraction = old_score_line.split('/')
+								os = old_score_fraction[0]
 
 
-				Score_Dict[score] = {}
-				Score_Dict[score]['score'] = ns
-				Score_Dict[score]['out_of'] = out_of
-				Score_Dict[score]['old'] = os
+							else:
+								os = old_score_line
+						except:
+							os = 0
+
+						if len(str(os)) > 2:
+							os = os[:2].strip()
+
+						Score_Dict[score] = {}
+						Score_Dict[score]['score'] = ns
+						Score_Dict[score]['out_of'] = out_of
+						Score_Dict[score]['old'] = os
+
+						found = True
+
+						break
+
+
+						# sys.exit()
 
 	return Score_Dict
 
@@ -262,21 +312,21 @@ def get_analyst(lines):
 
 				return clean_analyst
 
+	return []
 
 
-
-
-
-# a = r'V:\Fund Research\Private\Qual Rating Reports\3_Australian Equity\2012\Ratings Committee\Ratings Committee 2 - Growth\Perennial Growth High Conviction Ratings Note.docx'.replace('\\','\\')
-# a = r'C:\Temp\Ratings_Note_Test_File2.docx'.replace('\\','\\')
+# a = r'V:\Fund Research\Private\Qual Rating Reports\Colonial First State\2013\Multisector\CFS GAM Multisector - Ratings Note.docx'.replace('\\','\\')
+# # a = r'C:\Temp\Ratings_Note_Test_File2.docx'.replace('\\','\\')
 # l = process_file(a)
-# print get_ticker(l)
+# print get_scores(l)
 # sys.exit()
 
 analyst_list = []
 count = 1
 
 with open('C:\\Temp\\RN_filelist.txt', 'r') as f:
+
+	scores = ['Total Scores', 'People', 'Process', 'Parent', 'Performance', 'Price']
 
 	files = f.readlines()
 	random.shuffle(files)
@@ -285,6 +335,8 @@ with open('C:\\Temp\\RN_filelist.txt', 'r') as f:
 	# files = files[:100]
 
 	for f in files:
+
+		an_tup = ()
 	
 		print str(count) + ' / ' + str(len(files))
 		count += 1
@@ -297,23 +349,24 @@ with open('C:\\Temp\\RN_filelist.txt', 'r') as f:
 
 		lines = t.get_docx_text(link[0])
 
-		a = get_analyst(lines)
-
-		analyst_list += a if a else []
 
 		# print "\n"
 		# print "========"
 		# print f
-		# date = link[1]
+		date_str = link[1].replace('\n','')
+
+		time_ob = time.strptime(date_str, '%a %b %d %H:%M:%S %Y')
+
+		date = time.strftime('%d/%m/%Y', time_ob)
 
 		# print "Name: %s" % get_name(lines)
 
-		# tick = get_ticker(lines)
-		# try:
-		# 	tick = int(tick)
-		# 	tick = secid.get(tick, "Not Found")
-		# except:
-		# 	pass
+		tick = get_ticker(lines)
+		try:
+			tick = int(tick)
+			tick = secid.get(tick, "Not Found")
+		except:
+			pass
 
 		# print "Ticker: %s" % tick
 		# print 'Ratings: %s' % get_ratings(lines)
@@ -321,12 +374,41 @@ with open('C:\\Temp\\RN_filelist.txt', 'r') as f:
 		# print 'Analyst: %s' % get_analyst(lines)
 		# print 'Date: %s' % date
 
+		an_tup = ()
+
+		an_tup += (date,)
+		an_tup += (tick,)
+		an_tup += (get_name(lines).replace(',',' '),)
+
+		raw_anal = [x for x in get_analyst(lines) if x]
+
+		analyst_str = '+'.join(raw_anal)
+		an_tup += (analyst_str,)
+
+		rat_dict = get_ratings(lines)
+		an_tup += (rat_dict.get('Old', ''), rat_dict.get('Sug', ''), rat_dict.get('New', ''))
+
+		score_dict = get_scores(lines)
+		for group in scores:
+			an_tup += ( score_dict.get(group, {}).get('score', ''), 
+						score_dict.get(group, {}).get('out_of', ''), 
+						score_dict.get(group, {}).get('old', ''))
+
+		an_tup += (f,)
+
+		analyst_list.append(an_tup)
+		# print f
+		# print str(an_tup)
+
+'''
+(date, ticker, name, analyst, old, sug, new, tot, totoo, totold, ..., filename)
+'''
 
 with open('C:\\Temp\\Analysts.txt', 'w') as f:
 
 	for a in analyst_list:
 
-		f.write(a + '\n')
+		f.write(str(a) + '\n')
 
 
 # get ticker or SecID
